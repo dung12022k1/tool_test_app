@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIO Android Automation Tool - Reborn</title>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- ================= LEFT COLUMN: DEVICE MANAGER ================= -->
+        <aside class="sidebar glass-panel">
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <h2>VIO Reborn</h2>
+            </div>
+            
+            <div class="section-header">
+                <h3>Device Manager</h3>
+                <button id="refresh-devices-btn" class="icon-btn" title="Refresh Devices">🔄</button>
+            </div>
+            
+            <div id="devices-list" class="devices-container">
+                <!-- Dynamic Devices List -->
+                <p class="empty-state">Scanning for connected devices...</p>
+            </div>
+            
+            <div id="selected-device-panel" class="device-details glass-panel" style="display: none;">
+                <div class="device-info-header">
+                    <span class="status-indicator online"></span>
+                    <span id="active-device-model" class="device-model-label">Pixel 7 Pro</span>
+                </div>
+                <p class="device-serial-label">ID: <span id="active-device-id">123456789</span></p>
+                
+                <!-- Live Screen Mirror -->
+                <div class="live-mirror-wrapper">
+                    <div class="live-mirror-header">
+                        <span>🔴 LIVE STREAM</span>
+                        <button id="toggle-mirror-btn" class="small-btn">Pause</button>
+                    </div>
+                    <div class="screen-mirror-placeholder glass-panel">
+                        <img id="screen-mirror-img" src="" alt="Android Screen Mirror" style="display: none;" />
+                        <div id="mirror-spinner" class="spinner"></div>
+                        <p id="mirror-status-text" class="placeholder-text">Select a device to start mirror stream</p>
+                    </div>
+                    <p class="mirror-tip">💡 Tip: Click anywhere on the screen mirror to automatically record a Tap step!</p>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- ================= MIDDLE COLUMN: APK ANALYZER & CONTROL ================= -->
+        <main class="main-content">
+            <header class="top-bar glass-panel">
+                <h1 class="text-neon">Automation Dashboard</h1>
+                <div class="system-status-badge">
+                    <span class="pulse green"></span>
+                    <span>System Connected</span>
+                </div>
+            </header>
+            
+            <div class="main-grid">
+                <!-- APK Upload & Details -->
+                <section class="apk-section glass-panel">
+                    <h3>APK Analyzer</h3>
+                    <div class="apk-uploader" id="apk-dropzone">
+                        <div class="upload-icon">📦</div>
+                        <p>Drag & drop APK file here or <span>browse files</span></p>
+                        <input type="file" id="apk-file-input" accept=".apk" style="display: none;" />
+                    </div>
+                    
+                    <div id="apk-details-card" class="apk-details-card glass-panel" style="display: none;">
+                        <div class="apk-meta-header">
+                            <span class="apk-icon-placeholder">📱</span>
+                            <div>
+                                <h4 id="apk-label">My App</h4>
+                                <p id="apk-size" class="apk-size-label">12.5 MB</p>
+                            </div>
+                        </div>
+                        <div class="apk-meta-details">
+                            <p><strong>Package:</strong> <span id="apk-package" class="code-text">com.example.app</span></p>
+                            <p><strong>Activity:</strong> <span id="apk-activity" class="code-text">.MainActivity</span></p>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Execution Logs Terminal -->
+                <section class="logs-section glass-panel">
+                    <div class="section-header">
+                        <h3>Real-time Execution Console</h3>
+                        <div class="console-actions">
+                            <span id="runner-status-pill" class="badge idle">IDLE</span>
+                            <button id="clear-logs-btn" class="small-btn">Clear</button>
+                        </div>
+                    </div>
+                    
+                    <div class="terminal-wrapper">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div id="console-terminal" class="terminal-console">
+                            <div class="term-line info">> VIO Reborn test runner console ready.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Engine Controls -->
+                    <div class="controls-bar glass-panel">
+                        <div class="control-group">
+                            <label>Execution Engine</label>
+                            <select id="engine-select" class="premium-select">
+                                <option value="ADB_NATIVE">ADB-Native (Ultra Light)</option>
+                                <option value="APPIUM">Appium (Enterprise)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button id="stop-run-btn" class="btn btn-danger" disabled>⏹ Stop</button>
+                            <button id="start-run-btn" class="btn btn-primary" disabled>▶ Run Automation</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        
+        <!-- ================= RIGHT COLUMN: SCENARIO BUILDER ================= -->
+        <aside class="scenario-panel glass-panel">
+            <div class="section-header border-bottom">
+                <h3>Scenario Builder</h3>
+                <div class="scenario-actions">
+                    <button id="import-btn" class="small-btn">Import</button>
+                    <button id="export-btn" class="small-btn">Export</button>
+                    <input type="file" id="import-file-input" accept=".json" style="display: none;" />
+                </div>
+            </div>
+            
+            <div class="scenario-meta">
+                <label>Scenario Name</label>
+                <input type="text" id="scenario-name-input" class="premium-input" value="Click Test Scenario" />
+            </div>
+            
+            <!-- List of Steps -->
+            <div class="steps-container">
+                <div class="section-header">
+                    <h4>Steps Checklist</h4>
+                    <span id="steps-counter-badge" class="counter-badge">0 steps</span>
+                </div>
+                <div id="scenario-steps-list" class="steps-list">
+                    <!-- Dynamic Steps List -->
+                    <p class="empty-state">No steps added. Use the form below or click on the mirror to record steps.</p>
+                </div>
+            </div>
+            
+            <!-- Add Step Form -->
+            <div class="add-step-form glass-panel">
+                <h4>Add Test Step</h4>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Action</label>
+                        <select id="step-action" class="premium-select">
+                            <option value="CLICK">CLICK</option>
+                            <option value="INPUT">INPUT</option>
+                            <option value="WAIT">WAIT</option>
+                            <option value="SWIPE">SWIPE</option>
+                            <option value="BACK">BACK</option>
+                            <option value="HOME">HOME</option>
+                            <option value="LAUNCH_APP">LAUNCH_APP</option>
+                        </select>
+                    </div>
+                    <div class="form-group half" id="selector-group">
+                        <label>Selector</label>
+                        <select id="step-selector" class="premium-select">
+                            <option value="COORDINATES">COORDINATES</option>
+                            <option value="ID">RESOURCE_ID</option>
+                            <option value="TEXT">TEXT</option>
+                            <option value="ACCESSIBILITY_ID">CONTENT_DESC</option>
+                            <option value="XPATH">XPATH</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="value-group">
+                    <label id="value-label">Target Value</label>
+                    <input type="text" id="step-value" class="premium-input" placeholder="e.g., btn_login or 500,1000" />
+                </div>
+                
+                <div class="form-group" id="input-text-group" style="display: none;">
+                    <label>Text to Input</label>
+                    <input type="text" id="step-input-text" class="premium-input" placeholder="Enter text to type" />
+                </div>
+                
+                <div class="form-group" id="duration-group" style="display: none;">
+                    <label>Duration (ms)</label>
+                    <input type="number" id="step-duration" class="premium-input" value="1000" min="100" />
+                </div>
+                
+                <button id="add-step-btn" class="btn btn-success full-width">+ Add Step</button>
+            </div>
+        </aside>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
