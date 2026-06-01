@@ -17,6 +17,10 @@ __pycache__/
 .AppleDouble
 .LSOverride
 
+# Logs
+*.log
+server.log
+
 # Node
 node_modules/
 npm-debug.log
