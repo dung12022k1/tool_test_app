@@ -218,18 +218,51 @@ DOM.toggleMirrorBtn.addEventListener('click', () => {
 DOM.screenMirrorImg.addEventListener('click', async (event) => {
     if (!state.activeDeviceId) return;
     
-    const rect = DOM.screenMirrorImg.getBoundingClientRect();
+    const img = DOM.screenMirrorImg;
+    const rect = img.getBoundingClientRect();
     
-    // Clicked coordinates relative to the rendered image box
-    const displayedX = event.clientX - rect.left;
-    const displayedY = event.clientY - rect.top;
+    // Physical size of the image content (natural size)
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
     
-    const displayedWidth = rect.width;
-    const displayedHeight = rect.height;
+    if (!naturalWidth || !naturalHeight) return;
+    
+    // Container size
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
+    
+    // Calculate the actual rendered size and positions of the image inside the element (object-fit: contain logic)
+    const containerRatio = containerWidth / containerHeight;
+    const imageRatio = naturalWidth / naturalHeight;
+    
+    let renderedWidth, renderedHeight;
+    let offsetX = 0;
+    let offsetY = 0;
+    
+    if (containerRatio > imageRatio) {
+        // Image is limited by container height (black bars on left/right)
+        renderedHeight = containerHeight;
+        renderedWidth = containerHeight * imageRatio;
+        offsetX = (containerWidth - renderedWidth) / 2;
+    } else {
+        // Image is limited by container width (black bars on top/bottom)
+        renderedWidth = containerWidth;
+        renderedHeight = containerWidth / imageRatio;
+        offsetY = (containerHeight - renderedHeight) / 2;
+    }
+    
+    // Click coordinates relative to the actual rendered image content (excluding black bars)
+    const clickX = event.clientX - rect.left - offsetX;
+    const clickY = event.clientY - rect.top - offsetY;
+    
+    // Check if the click was inside the actual image bounds
+    if (clickX < 0 || clickX > renderedWidth || clickY < 0 || clickY > renderedHeight) {
+        return; // Ignore clicks in the black bars area
+    }
     
     // Scale coordinates to fit device native screen bounds
-    const scaledX = Math.round((displayedX / displayedWidth) * state.activeDeviceWidth);
-    const scaledY = Math.round((displayedY / displayedHeight) * state.activeDeviceHeight);
+    const scaledX = Math.round((clickX / renderedWidth) * naturalWidth);
+    const scaledY = Math.round((clickY / renderedHeight) * naturalHeight);
     
     // Create new step
     const newStep = {
