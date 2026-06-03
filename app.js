@@ -158,14 +158,27 @@ function selectDevice(device) {
 
 // Fetch device resolution
 async function queryDisplaySize(deviceId) {
-    // We can assume standard resolution, but we fallback gracefully
-    state.activeDeviceWidth = 1080;
-    state.activeDeviceHeight = 2400;
+    try {
+        const response = await fetch(`/api/device-resolution/${deviceId}`);
+        const data = await response.json();
+        if (data.width && data.height) {
+            state.activeDeviceWidth = data.width;
+            state.activeDeviceHeight = data.height;
+            printConsoleLog(`[DEVICE] Resolution set to: ${data.width}x${data.height}`, "info");
+        } else {
+            state.activeDeviceWidth = 1080;
+            state.activeDeviceHeight = 2400;
+        }
+    } catch (err) {
+        console.error("Failed to query display size:", err);
+        state.activeDeviceWidth = 1080;
+        state.activeDeviceHeight = 2400;
+    }
 }
 
 // Refresh mirror img from server
 function refreshScreenMirror() {
-    if (!state.activeDeviceId || !state.mirrorEnabled || state.isRunning) return;
+    if (!state.activeDeviceId || !state.mirrorEnabled) return;
     
     // Append timestamp to avoid browser caching the image request
     const imgUrl = `/api/device-screen/${state.activeDeviceId}?t=${Date.now()}`;
@@ -202,7 +215,7 @@ DOM.toggleMirrorBtn.addEventListener('click', () => {
 // ----------------- VISUAL RECORD & PLAYBACK -----------------
 
 // Listen to tap events on mirror image to record coordinate steps automatically
-DOM.screenMirrorImg.addEventListener('click', (event) => {
+DOM.screenMirrorImg.addEventListener('click', async (event) => {
     if (!state.activeDeviceId) return;
     
     const rect = DOM.screenMirrorImg.getBoundingClientRect();
@@ -232,6 +245,19 @@ DOM.screenMirrorImg.addEventListener('click', (event) => {
     
     // Add visual tap log to local terminal console
     printConsoleLog(`[RECORDED] Tap coordinate: (${scaledX}, ${scaledY})`, "warning");
+
+    // Also trigger the physical tap on the device in real-time
+    try {
+        await fetch(`/api/device-click/${state.activeDeviceId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ x: scaledX, y: scaledY })
+        });
+        // Settle briefly and refresh mirror image to show transition
+        setTimeout(refreshScreenMirror, 300);
+    } catch (err) {
+        console.error("Failed to execute real-time tap:", err);
+    }
 });
 
 // ----------------- APK ANALYSIS DRAG ZONE -----------------

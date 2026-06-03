@@ -367,6 +367,42 @@ def stop_automation():
     log_message("Requesting test runner to stop...", "warning")
     return jsonify({"status": "stopping"})
 
+@app.route('/api/device-click/<device_id>', methods=['POST'])
+def device_click(device_id):
+    try:
+        data = request.json
+        x = data.get("x")
+        y = data.get("y")
+        if x is None or y is None:
+            return jsonify({"error": "Coordinates X and Y are required"}), 400
+        cmd = [ADB_PATH, "-s", device_id, "shell", "input", "tap", str(x), str(y)]
+        subprocess.run(cmd, capture_output=True)
+        return jsonify({"status": "success", "x": x, "y": y})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/device-resolution/<device_id>', methods=['GET'])
+def get_device_resolution(device_id):
+    try:
+        result = subprocess.run([ADB_PATH, "-s", device_id, "shell", "wm", "size"], capture_output=True, text=True, timeout=5)
+        # Parse physical size
+        match = re.search(r'Physical size:\s*(\d+)x(\d+)', result.stdout)
+        if match:
+            width = int(match.group(1))
+            height = int(match.group(2))
+            return jsonify({"width": width, "height": height})
+        
+        # Parse override size
+        match_override = re.search(r'Override size:\s*(\d+)x(\d+)', result.stdout)
+        if match_override:
+            width = int(match_override.group(1))
+            height = int(match_override.group(2))
+            return jsonify({"width": width, "height": height})
+            
+        return jsonify({"width": 1080, "height": 2400})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     log_message("Initializing Reborn VIO Automation Server...", "info")
     log_message(f"Local ADB path configured: {ADB_PATH}", "info")
