@@ -11,8 +11,9 @@ from flask_cors import CORS
 app = Flask(__name__, static_folder='.')
 CORS(app)
 
-ADB_PATH = "/Volumes/SSD_cua_Dung/android_studio/platform-tools/adb"
-AAPT_PATH = "/Volumes/SSD_cua_Dung/android_studio/build-tools/37.0.0/aapt"
+ADB_PATH = "/home/adminpc/Android/Sdk/platform-tools/adb" if os.path.exists("/home/adminpc/Android/Sdk/platform-tools/adb") else "adb"
+AAPT_PATH = "/home/adminpc/Android/Sdk/build-tools/37.0.0/aapt" if os.path.exists("/home/adminpc/Android/Sdk/build-tools/37.0.0/aapt") else "aapt"
+
 
 # Memory log buffer for Server-Sent Events (SSE)
 execution_logs = []
