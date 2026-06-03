@@ -175,6 +175,7 @@ def run_adb_step(device_id, step, index):
         cmd = [ADB_PATH, "-s", device_id, "shell", "monkey", "-p", selector_value, "-c", "android.intent.category.LAUNCHER", "1"]
         subprocess.run(cmd, capture_output=True)
         log_message(f"Launched application: {selector_value}", "success")
+        time.sleep(2.5)  # Settle time for app launch
         
     elif action == "CLICK":
         if selector == "COORDINATES":
@@ -184,8 +185,10 @@ def run_adb_step(device_id, step, index):
                 cmd = [ADB_PATH, "-s", device_id, "shell", "input", "tap", coords[0].strip(), coords[1].strip()]
                 subprocess.run(cmd, capture_output=True)
                 log_message(f"Clicked coordinate: ({coords[0].strip()}, {coords[1].strip()})", "success")
+                time.sleep(1.0)  # Settle time after click
             else:
                 log_message("Invalid coordinates format. Expected 'X,Y'", "error")
+                return False
         else:
             # Advanced selector matching via UI hierarchy parsing
             log_message(f"Locating element by {selector}: '{selector_value}'...", "info")
@@ -194,6 +197,7 @@ def run_adb_step(device_id, step, index):
                 cmd = [ADB_PATH, "-s", device_id, "shell", "input", "tap", str(coords[0]), str(coords[1])]
                 subprocess.run(cmd, capture_output=True)
                 log_message(f"Found element and clicked at ({coords[0]}, {coords[1]})", "success")
+                time.sleep(1.0)  # Settle time after click
             else:
                 log_message(f"Element not found by {selector}: '{selector_value}'", "error")
                 return False
@@ -212,6 +216,7 @@ def run_adb_step(device_id, step, index):
         cmd = [ADB_PATH, "-s", device_id, "shell", "input", "text", escaped_text]
         subprocess.run(cmd, capture_output=True)
         log_message(f"Inputted text: '{text_to_input}'", "success")
+        time.sleep(1.0)  # Settle time after input
         
     elif action == "WAIT":
         log_message(f"Pausing for {duration}ms...", "info")
@@ -232,75 +237,85 @@ def run_adb_step(device_id, step, index):
                 cmd = [ADB_PATH, "-s", device_id, "shell", "input", "swipe", "500", "1500", "500", "500", "500"]
         subprocess.run(cmd, capture_output=True)
         log_message(f"Performed swipe action: {selector_value}", "success")
+        time.sleep(1.2)  # Settle time after swipe
         
     elif action == "BACK":
         cmd = [ADB_PATH, "-s", device_id, "shell", "input", "keyevent", "4"]
         subprocess.run(cmd, capture_output=True)
         log_message("Pressed back button", "success")
+        time.sleep(1.0)  # Settle time after BACK
         
     elif action == "HOME":
         cmd = [ADB_PATH, "-s", device_id, "shell", "input", "keyevent", "3"]
         subprocess.run(cmd, capture_output=True)
         log_message("Pressed home button", "success")
+        time.sleep(1.0)  # Settle time after HOME
         
     return True
 
-def find_element_coords(device_id, selector_type, value):
-    try:
-        # Dump UI XML hierarchy to device and retrieve it
-        temp_dir = tempfile.gettempdir()
-        xml_path = os.path.join(temp_dir, "window_dump.xml")
-        
-        # Remove any leftover file
-        if os.path.exists(xml_path):
-            os.remove(xml_path)
+def find_element_coords(device_id, selector_type, value, retries=5, delay=1.0):
+    for attempt in range(retries):
+        try:
+            # Dump UI XML hierarchy to device and retrieve it
+            temp_dir = tempfile.gettempdir()
+            xml_path = os.path.join(temp_dir, f"window_dump_{device_id}.xml")
             
-        subprocess.run([ADB_PATH, "-s", device_id, "shell", "uiautomator", "dump", "/sdcard/window_dump.xml"], capture_output=True, timeout=5)
-        subprocess.run([ADB_PATH, "-s", device_id, "pull", "/sdcard/window_dump.xml", xml_path], capture_output=True, timeout=5)
-        
-        if not os.path.exists(xml_path):
-            return None
-            
-        with open(xml_path, 'r', encoding='utf-8', errors='ignore') as f:
-            xml_content = f.read()
-            
-        # Parse elements manually with regex to avoid heavy xml dependency issues
-        # Node format: <node index="0" text="Text" resource-id="id" bounds="[x1,y1][x2,y2]" />
-        nodes = re.findall(r'<node\s+[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*>', xml_content)
-        
-        for node in re.finditer(r'<node\s+([^>]+)bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_content):
-            attrs = node.group(1)
-            x1, y1, x2, y2 = int(node.group(2)), int(node.group(3)), int(node.group(4)), int(node.group(5))
-            
-            # Extract specific attributes
-            node_id_match = re.search(r'resource-id="([^"]*)"', attrs)
-            node_text_match = re.search(r'text="([^"]*)"', attrs)
-            node_desc_match = re.search(r'content-desc="([^"]*)"', attrs)
-            
-            node_id = node_id_match.group(1) if node_id_match else ""
-            node_text = node_text_match.group(1) if node_text_match else ""
-            node_desc = node_desc_match.group(1) if node_desc_match else ""
-            
-            matched = False
-            if selector_type == "ID" and value in node_id:
-                matched = True
-            elif selector_type == "TEXT" and value.lower() in node_text.lower():
-                matched = True
-            elif selector_type == "ACCESSIBILITY_ID" and value in node_desc:
-                matched = True
-            elif selector_type == "XPATH" and value in attrs: # Simple fuzzy xpath match
-                matched = True
+            # Remove any leftover file
+            if os.path.exists(xml_path):
+                os.remove(xml_path)
                 
-            if matched:
-                # Return center coordinates of bounds
-                center_x = (x1 + x2) // 2
-                center_y = (y1 + y2) // 2
-                return (center_x, center_y)
+            subprocess.run([ADB_PATH, "-s", device_id, "shell", "uiautomator", "dump", "/sdcard/window_dump.xml"], capture_output=True, timeout=5)
+            subprocess.run([ADB_PATH, "-s", device_id, "pull", "/sdcard/window_dump.xml", xml_path], capture_output=True, timeout=5)
+            
+            if not os.path.exists(xml_path):
+                time.sleep(delay)
+                continue
                 
-        return None
-    except Exception as e:
-        print(f"Error parsing UI XML: {str(e)}")
-        return None
+            with open(xml_path, 'r', encoding='utf-8', errors='ignore') as f:
+                xml_content = f.read()
+                
+            # Parse elements manually with regex to avoid heavy xml dependency issues
+            for node in re.finditer(r'<node\s+([^>]+)bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_content):
+                attrs = node.group(1)
+                x1, y1, x2, y2 = int(node.group(2)), int(node.group(3)), int(node.group(4)), int(node.group(5))
+                
+                # Extract specific attributes
+                node_id_match = re.search(r'resource-id="([^"]*)"', attrs)
+                node_text_match = re.search(r'text="([^"]*)"', attrs)
+                node_desc_match = re.search(r'content-desc="([^"]*)"', attrs)
+                
+                node_id = node_id_match.group(1) if node_id_match else ""
+                node_text = node_text_match.group(1) if node_text_match else ""
+                node_desc = node_desc_match.group(1) if node_desc_match else ""
+                
+                matched = False
+                if selector_type == "ID" and value in node_id:
+                    matched = True
+                elif selector_type == "TEXT" and value.lower() in node_text.lower():
+                    matched = True
+                elif selector_type == "ACCESSIBILITY_ID" and value in node_desc:
+                    matched = True
+                elif selector_type == "XPATH" and value in attrs:  # Simple fuzzy xpath match
+                    matched = True
+                    
+                if matched:
+                    # Return center coordinates of bounds
+                    center_x = (x1 + x2) // 2
+                    center_y = (y1 + y2) // 2
+                    return (center_x, center_y)
+            
+            # If not found on this attempt, print log and wait before retry
+            if attempt < retries - 1:
+                log_message(f"Element '{value}' not found on attempt {attempt + 1}/{retries}. Retrying in {delay}s...", "warning")
+                time.sleep(delay)
+                
+        except Exception as e:
+            print(f"Error parsing UI XML on attempt {attempt + 1}: {str(e)}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+                
+    return None
+
 
 @app.route('/api/run', methods=['POST'])
 def start_automation():
